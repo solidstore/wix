@@ -10,6 +10,7 @@ namespace WixToolset.Http
         WixHttpSniSslCert,
         WixHttpUrlAce,
         WixHttpUrlReservation,
+        WixHttpSslCert,
     }
 
     public static partial class HttpSymbolDefinitions
@@ -32,6 +33,9 @@ namespace WixToolset.Http
             {
                 case HttpSymbolDefinitionType.WixHttpSniSslCert:
                     return HttpSymbolDefinitions.WixHttpSniSslCert;
+
+                case HttpSymbolDefinitionType.WixHttpSslCert:
+                    return HttpSymbolDefinitions.WixHttpSslCert;
 
                 case HttpSymbolDefinitionType.WixHttpUrlAce:
                     return HttpSymbolDefinitions.WixHttpUrlAce;

@@ -29,6 +29,25 @@ namespace WixToolsetTest.Http
         }
 
         [Fact]
+        public void CanBuildUsingSsl()
+        {
+            var folder = TestData.Get("TestData", "Ssl");
+            var build = new Builder(folder, typeof(HttpExtensionFactory), new[] { folder });
+
+            var results = build.BuildAndQuery(Build, "CustomAction", "Wix4HttpSslCert");
+            WixAssert.CompareLineByLine(new[]
+            {
+                "CustomAction:Wix4ExecHttpSslCertsInstall_X86\t3073\tWix4HttpCA_X86\tExecHttpSslCerts\t",
+                "CustomAction:Wix4ExecHttpSslCertsUninstall_X86\t3073\tWix4HttpCA_X86\tExecHttpSslCerts\t",
+                "CustomAction:Wix4RollbackHttpSslCertsInstall_X86\t3329\tWix4HttpCA_X86\tExecHttpSslCerts\t",
+                "CustomAction:Wix4RollbackHttpSslCertsUninstall_X86\t3329\tWix4HttpCA_X86\tExecHttpSslCerts\t",
+                "CustomAction:Wix4SchedHttpSslCertsInstall_X86\t1\tWix4HttpCA_X86\tSchedHttpSslCertsInstall\t",
+                "CustomAction:Wix4SchedHttpSslCertsUninstall_X86\t1\tWix4HttpCA_X86\tSchedHttpSslCertsUninstall\t",
+                "Wix4HttpSslCert:ssle0Wgg93FXwXdLjwZWqv0HKBhhKE\t0.0.0.0\t8080\t[SOME_THUMBPRINT]\t\t\t2\tfilF5_pLhBuF5b4N9XEo52g_hUM5Lo",
+            }, results);
+        }
+
+        [Fact]
         public void CanBuildUsingUrlReservation()
         {
             var folder = TestData.Get(@"TestData\UsingUrlReservation");

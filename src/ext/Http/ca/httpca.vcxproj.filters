@@ -24,6 +24,9 @@
     <ClCompile Include="snisslcert.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="sslcert.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="precomp.h">
@@ -37,6 +40,5 @@
     <None Include="wixhttpca.def">
       <Filter>Source Files</Filter>
     </None>
-    <None Include="packages.config" />
   </ItemGroup>
 </Project>

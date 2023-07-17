@@ -52,6 +52,10 @@ namespace WixToolset.Http
                             this.ParseSniSslCertificateElement(intermediate, section, element, componentId);
                             break;
 
+                        case "SslCertificate":
+                            this.ParseSslCertificateElement(intermediate, section, element, componentId);
+                            break;
+
                         case "UrlReservation":
                             this.ParseUrlReservationElement(intermediate, section, element, componentId, null);
                             break;
@@ -175,6 +179,118 @@ namespace WixToolset.Http
 
                 this.ParseHelper.CreateCustomActionReference(sourceLineNumbers, section, "Wix4SchedHttpSniSslCertsInstall", this.Context.Platform, CustomActionPlatforms.X86 | CustomActionPlatforms.X64 | CustomActionPlatforms.ARM64);
                 this.ParseHelper.CreateCustomActionReference(sourceLineNumbers, section, "Wix4SchedHttpSniSslCertsUninstall", this.Context.Platform, CustomActionPlatforms.X86 | CustomActionPlatforms.X64 | CustomActionPlatforms.ARM64);
+            }
+        }
+
+        /// <summary>
+        /// Parses a Ssl element.
+        /// </summary>
+        /// <param name="node">The element to parse.</param>
+        /// <param name="componentId">Identifier of the component that owns this SNI SSL Certificate.</param>
+        private void ParseSslCertificateElement(Intermediate intermediate, IntermediateSection section, XElement node, string componentId)
+        {
+            var sourceLineNumbers = this.ParseHelper.GetSourceLineNumbers(node);
+            Identifier id = null;
+            string host = null;
+            string port = null;
+            string appId = null;
+            string store = null;
+            string thumbprint = null;
+            var handleExisting = HandleExisting.Replace;
+
+            foreach (var attrib in node.Attributes())
+            {
+                if (String.IsNullOrEmpty(attrib.Name.NamespaceName) || this.Namespace == attrib.Name.Namespace)
+                {
+                    switch (attrib.Name.LocalName)
+                    {
+                        case "Id":
+                            id = this.ParseHelper.GetAttributeIdentifier(sourceLineNumbers, attrib);
+                            break;
+                        case "AppId":
+                            appId = this.ParseHelper.GetAttributeValue(sourceLineNumbers, attrib);
+                            break;
+                        case "HandleExisting":
+                            var handleExistingValue = this.ParseHelper.GetAttributeValue(sourceLineNumbers, attrib);
+                            switch (handleExistingValue)
+                            {
+                                case "replace":
+                                    handleExisting = HandleExisting.Replace;
+                                    break;
+                                case "ignore":
+                                    handleExisting = HandleExisting.Ignore;
+                                    break;
+                                case "fail":
+                                    handleExisting = HandleExisting.Fail;
+                                    break;
+                                default:
+                                    this.Messaging.Write(ErrorMessages.IllegalAttributeValue(sourceLineNumbers, node.Name.LocalName, "HandleExisting", handleExistingValue, "replace", "ignore", "fail"));
+                                    break;
+                            }
+                            break;
+                        case "Host":
+                            host = this.ParseHelper.GetAttributeValue(sourceLineNumbers, attrib);
+                            break;
+                        case "Port":
+                            port = this.ParseHelper.GetAttributeValue(sourceLineNumbers, attrib);
+                            break;
+                        case "Store":
+                            store = this.ParseHelper.GetAttributeValue(sourceLineNumbers, attrib);
+                            break;
+                        case "Thumbprint":
+                            thumbprint = this.ParseHelper.GetAttributeValue(sourceLineNumbers, attrib);
+                            break;
+                        default:
+                            this.ParseHelper.UnexpectedAttribute(node, attrib);
+                            break;
+                    }
+                }
+                else
+                {
+                    this.ParseHelper.ParseExtensionAttribute(this.Context.Extensions, intermediate, section, node, attrib);
+                }
+            }
+
+            // Need the element ID for child element processing, so generate now if not authored.
+            if (null == id)
+            {
+                id = this.ParseHelper.CreateIdentifier("ssl", componentId, host, port);
+            }
+
+            // Required attributes.
+            if (null == host)
+            {
+                this.Messaging.Write(ErrorMessages.ExpectedAttribute(sourceLineNumbers, node.Name.LocalName, "Host"));
+            }
+
+            if (null == port)
+            {
+                this.Messaging.Write(ErrorMessages.ExpectedAttribute(sourceLineNumbers, node.Name.LocalName, "Port"));
+            }
+
+            if (null == thumbprint)
+            {
+                this.Messaging.Write(ErrorMessages.ExpectedAttribute(sourceLineNumbers, node.Name.LocalName, "Thumbprint"));
+            }
+
+            // Parse unknown children.
+            this.ParseHelper.ParseForExtensionElements(this.Context.Extensions, intermediate, section, node);
+
+            if (!this.Messaging.EncounteredError)
+            {
+                section.AddSymbol(new WixHttpSslCertSymbol(sourceLineNumbers, id)
+                {
+                    Host = host,
+                    Port = port,
+                    Thumbprint = thumbprint,
+                    AppId = appId,
+                    Store = store,
+                    HandleExisting = handleExisting,
+                    ComponentRef = componentId,
+                });
+
+                this.ParseHelper.CreateCustomActionReference(sourceLineNumbers, section, "Wix4SchedHttpSslCertsInstall", this.Context.Platform, CustomActionPlatforms.X86 | CustomActionPlatforms.X64 | CustomActionPlatforms.ARM64);
+                this.ParseHelper.CreateCustomActionReference(sourceLineNumbers, section, "Wix4SchedHttpSslCertsUninstall", this.Context.Platform, CustomActionPlatforms.X86 | CustomActionPlatforms.X64 | CustomActionPlatforms.ARM64);
             }
         }
 

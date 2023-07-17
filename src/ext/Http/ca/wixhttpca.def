@@ -10,3 +10,6 @@ EXPORTS
 	SchedHttpSniSslCertsInstall
 	SchedHttpSniSslCertsUninstall
 	ExecHttpSniSslCerts
+	SchedHttpSslCertsInstall
+	SchedHttpSslCertsUninstall
+	ExecHttpSslCerts

@@ -23,6 +23,23 @@ namespace WixToolset.Http
             symbolIdIsPrimaryKey: true
         );
 
+        public static readonly TableDefinition WixHttpSslCert = new TableDefinition(
+            "Wix4HttpSslCert",
+            HttpSymbolDefinitions.WixHttpSslCert,
+            new[]
+            {
+                new ColumnDefinition("Wix4HttpSslCert", ColumnType.String, 72, primaryKey: true, nullable: false, ColumnCategory.Identifier, description: "The non-localized primary key for the table.", modularizeType: ColumnModularizeType.Column),
+                new ColumnDefinition("Host", ColumnType.String, 0, primaryKey: false, nullable: false, ColumnCategory.Formatted, description: "Host for the SSL certificate.", modularizeType: ColumnModularizeType.Property),
+                new ColumnDefinition("Port", ColumnType.String, 0, primaryKey: false, nullable: false, ColumnCategory.Formatted, description: "Port for the SSL certificate.", modularizeType: ColumnModularizeType.Property),
+                new ColumnDefinition("Thumbprint", ColumnType.String, 0, primaryKey: false, nullable: false, ColumnCategory.Formatted, description: "humbprint of the SSL certificate to find.", modularizeType: ColumnModularizeType.Property),
+                new ColumnDefinition("AppId", ColumnType.String, 0, primaryKey: false, nullable: true, ColumnCategory.Formatted, description: "Optional application id for the SSL certificate.", modularizeType: ColumnModularizeType.Property),
+                new ColumnDefinition("Store", ColumnType.String, 0, primaryKey: false, nullable: true, ColumnCategory.Formatted, description: "Optional application id for the SSL certificate.", modularizeType: ColumnModularizeType.Property),
+                new ColumnDefinition("HandleExisting", ColumnType.Number, 4, primaryKey: false, nullable: false, ColumnCategory.Unknown, minValue: 0, maxValue: 2, description: "The behavior when trying to install a SSL certificate and it already exists."),
+                new ColumnDefinition("Component_", ColumnType.String, 72, primaryKey: false, nullable: false, ColumnCategory.Identifier, keyTable: "Component", keyColumn: 1, description: "Foreign key into the Component table referencing the component that controls the URL reservation.", modularizeType: ColumnModularizeType.Column),
+            },
+            symbolIdIsPrimaryKey: true
+        );
+
         public static readonly TableDefinition WixHttpUrlReservation = new TableDefinition(
             "Wix4HttpUrlReservation",
             HttpSymbolDefinitions.WixHttpUrlReservation,
@@ -55,6 +72,7 @@ namespace WixToolset.Http
             WixHttpSniSslCert,
             WixHttpUrlReservation,
             WixHttpUrlAce,
+            WixHttpSslCert,
         };
     }
 }
