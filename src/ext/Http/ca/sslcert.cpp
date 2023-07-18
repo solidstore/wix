@@ -52,7 +52,7 @@ static HRESULT RemoveSslCert(
     __in_z LPWSTR wzHost,
     __in int iPort
 );
-static void SetSslCertSetKey(
+static HRESULT SetSslCertSetKey(
     __in HTTP_SERVICE_CONFIG_SSL_KEY* pKey,
     __in_z LPWSTR wzHost,
     __in int iPort
@@ -270,7 +270,7 @@ static UINT SchedHttpSslCerts(
 )
 {
     HRESULT hr = S_OK;
-    UINT er = ERROR_SUCCESS;
+    //UINT er = ERROR_SUCCESS;
     BOOL fHttpInitialized = FALSE;
     DWORD cCertificates = 0;
 
@@ -429,7 +429,7 @@ LExit:
         ::HttpTerminate(HTTP_INITIALIZE_CONFIG, NULL);
     }
 
-    return WcaFinalize(er = FAILED(hr) ? ERROR_INSTALL_FAILURE : er);
+    return hr;
 }
 
 static HRESULT WriteExistingSslCert(
@@ -575,7 +575,9 @@ static HRESULT AddSslCert(
     HRESULT hr = S_OK;
     DWORD er = ERROR_SUCCESS;
     HTTP_SERVICE_CONFIG_SSL_SET set = { };
+    SOCKADDR_STORAGE addr = { };
 
+    set.KeyDesc.pIpPort = reinterpret_cast<PSOCKADDR>(&addr);
     SetSslCertSetKey(&set.KeyDesc, wzHost, iPort);
     set.ParamDesc.SslHashLength = cbCertificateThumbprint;
     set.ParamDesc.pSslHash = rgbCertificateThumbprint;
@@ -606,10 +608,12 @@ static HRESULT GetSslCert(
     HTTP_SERVICE_CONFIG_SSL_QUERY query = { };
     HTTP_SERVICE_CONFIG_SSL_SET* pSet = NULL;
     ULONG cbSet = 0;
+    SOCKADDR_STORAGE addr = { };
 
     *ppSet = NULL;
 
     query.QueryDesc = HttpServiceConfigQueryExact;
+    query.KeyDesc.pIpPort = reinterpret_cast<PSOCKADDR>(&addr);
     SetSslCertSetKey(&query.KeyDesc, wzHost, nPort);
 
     er = ::HttpQueryServiceConfiguration(NULL, HttpServiceConfigSSLCertInfo, &query, sizeof(query), pSet, cbSet, &cbSet, NULL);
@@ -650,7 +654,9 @@ static HRESULT RemoveSslCert(
     HRESULT hr = S_OK;
     DWORD er = ERROR_SUCCESS;
     HTTP_SERVICE_CONFIG_SSL_SET set = { };
+    SOCKADDR_STORAGE addr = { };
 
+    set.KeyDesc.pIpPort = reinterpret_cast<PSOCKADDR>(&addr);
     SetSslCertSetKey(&set.KeyDesc, wzHost, iPort);
 
     er = ::HttpDeleteServiceConfiguration(NULL, HttpServiceConfigSSLCertInfo, &set, sizeof(set), NULL);
@@ -666,14 +672,22 @@ static HRESULT RemoveSslCert(
     return hr;
 }
 
-static void SetSslCertSetKey(
+static HRESULT SetSslCertSetKey(
     __in HTTP_SERVICE_CONFIG_SSL_KEY* pKey,
     __in_z LPWSTR wzHost,
     __in int iPort
 )
 {
-    SOCKADDR_IN* pss = reinterpret_cast<SOCKADDR_IN*>(&pKey->pIpPort);
-    InetPtonW(AF_INET, wzHost, &(pss->sin_addr));
+    DWORD er = ERROR_SUCCESS;
+
+    SOCKADDR_IN* pss = reinterpret_cast<SOCKADDR_IN*>(pKey->pIpPort);
     pss->sin_family = AF_INET;
     pss->sin_port = htons(static_cast<USHORT>(iPort));
+    if (!InetPtonW(AF_INET, wzHost, &pss->sin_addr))
+    {
+        er = WSAGetLastError();
+    }
+
+    HRESULT hr = HRESULT_FROM_WIN32(er);
+    return hr;
 }
