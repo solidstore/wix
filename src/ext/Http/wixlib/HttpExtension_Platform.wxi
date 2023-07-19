@@ -1,4 +1,4 @@
-﻿<!-- Copyright (c) .NET Foundation and contributors. All rights reserved. Licensed under the Microsoft Reciprocal License. See LICENSE.TXT file in the project root for full license information. -->
+<!-- Copyright (c) .NET Foundation and contributors. All rights reserved. Licensed under the Microsoft Reciprocal License. See LICENSE.TXT file in the project root for full license information. -->
 
 
 <Include xmlns="http://wixtoolset.org/schemas/v4/wxs">
@@ -69,12 +69,12 @@
             <ProgressText Action="$(var.Prefix)ExecHttpSslCertsUninstall$(var.Suffix)" Message="!(loc.WixExecHttpSslCertsUninstall)" />
         </UI>
 
-        <CustomAction Id="$(var.Prefix)SchedHttpSslCertsInstall$(var.Suffix)" BinaryRef="$(var.Prefix)HttpCA$(var.Suffix)" DllEntry="SchedHttpSslCertsInstall" Execute="immediate" Return="check" SuppressModularization="yes" />
-        <CustomAction Id="$(var.Prefix)SchedHttpSslCertsUninstall$(var.Suffix)" BinaryRef="$(var.Prefix)HttpCA$(var.Suffix)" DllEntry="SchedHttpSslCertsUninstall" Execute="immediate" Return="check" SuppressModularization="yes" />
-        <CustomAction Id="$(var.Prefix)RollbackHttpSslCertsInstall$(var.Suffix)" BinaryRef="$(var.Prefix)HttpCA$(var.Suffix)" DllEntry="ExecHttpSslCerts" Execute="rollback" Impersonate="no" Return="check" SuppressModularization="yes" />
-        <CustomAction Id="$(var.Prefix)ExecHttpSslCertsInstall$(var.Suffix)" BinaryRef="$(var.Prefix)HttpCA$(var.Suffix)" DllEntry="ExecHttpSslCerts" Execute="deferred" Impersonate="no" Return="check" SuppressModularization="yes" />
-        <CustomAction Id="$(var.Prefix)RollbackHttpSslCertsUninstall$(var.Suffix)" BinaryRef="$(var.Prefix)HttpCA$(var.Suffix)" DllEntry="ExecHttpSslCerts" Execute="rollback" Impersonate="no" Return="check" SuppressModularization="yes" />
-        <CustomAction Id="$(var.Prefix)ExecHttpSslCertsUninstall$(var.Suffix)" BinaryRef="$(var.Prefix)HttpCA$(var.Suffix)" DllEntry="ExecHttpSslCerts" Execute="deferred" Impersonate="no" Return="check" SuppressModularization="yes" />
+        <CustomAction Id="$(var.Prefix)SchedHttpSslCertsInstall$(var.Suffix)" BinaryRef="$(var.Prefix)HttpCA$(var.Suffix)" DllEntry="SchedHttpSslCertsInstall" Execute="immediate" Return="check" HideTarget="yes" SuppressModularization="yes" />
+        <CustomAction Id="$(var.Prefix)SchedHttpSslCertsUninstall$(var.Suffix)" BinaryRef="$(var.Prefix)HttpCA$(var.Suffix)" DllEntry="SchedHttpSslCertsUninstall" Execute="immediate" Return="check" HideTarget="yes" SuppressModularization="yes" />
+        <CustomAction Id="$(var.Prefix)RollbackHttpSslCertsInstall$(var.Suffix)" BinaryRef="$(var.Prefix)HttpCA$(var.Suffix)" DllEntry="ExecHttpSslCerts" Execute="rollback" Impersonate="no" Return="check" HideTarget="yes" SuppressModularization="yes" />
+        <CustomAction Id="$(var.Prefix)ExecHttpSslCertsInstall$(var.Suffix)" BinaryRef="$(var.Prefix)HttpCA$(var.Suffix)" DllEntry="ExecHttpSslCerts" Execute="deferred" Impersonate="no" Return="check" HideTarget="yes" SuppressModularization="yes" />
+        <CustomAction Id="$(var.Prefix)RollbackHttpSslCertsUninstall$(var.Suffix)" BinaryRef="$(var.Prefix)HttpCA$(var.Suffix)" DllEntry="ExecHttpSslCerts" Execute="rollback" Impersonate="no" Return="check" HideTarget="yes" SuppressModularization="yes" />
+        <CustomAction Id="$(var.Prefix)ExecHttpSslCertsUninstall$(var.Suffix)" BinaryRef="$(var.Prefix)HttpCA$(var.Suffix)" DllEntry="ExecHttpSslCerts" Execute="deferred" Impersonate="no" Return="check" HideTarget="yes" SuppressModularization="yes" />
 
         <!--
             We need the HTTP server on Windows XP SP2 or later.

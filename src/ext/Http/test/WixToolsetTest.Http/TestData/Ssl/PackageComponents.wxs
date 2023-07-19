@@ -6,6 +6,7 @@
         <Component>
             <File Source="example.txt" />
             <http:SslCertificate Host="0.0.0.0" Port="8080" Thumbprint="[SOME_THUMBPRINT]" HandleExisting="fail" />
+            <http:SslCertificate Host="0.0.0.0" Port="8081" CertificateRef="1234" HandleExisting="fail" />
         </Component>
     </ComponentGroup>
   </Fragment>

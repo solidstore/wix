@@ -196,6 +196,7 @@ namespace WixToolset.Http
             string appId = null;
             string store = null;
             string thumbprint = null;
+            string certificateRef = null;
             var handleExisting = HandleExisting.Replace;
 
             foreach (var attrib in node.Attributes())
@@ -240,6 +241,9 @@ namespace WixToolset.Http
                         case "Thumbprint":
                             thumbprint = this.ParseHelper.GetAttributeValue(sourceLineNumbers, attrib);
                             break;
+                        case "CertificateRef":
+                            certificateRef = this.ParseHelper.GetAttributeValue(sourceLineNumbers, attrib);
+                            break;
                         default:
                             this.ParseHelper.UnexpectedAttribute(node, attrib);
                             break;
@@ -268,9 +272,16 @@ namespace WixToolset.Http
                 this.Messaging.Write(ErrorMessages.ExpectedAttribute(sourceLineNumbers, node.Name.LocalName, "Port"));
             }
 
-            if (null == thumbprint)
+            if (null != certificateRef && null != thumbprint)
             {
-                this.Messaging.Write(ErrorMessages.ExpectedAttribute(sourceLineNumbers, node.Name.LocalName, "Thumbprint"));
+                //this.Messaging.Write(ErrorMessages.ExpectedAttribute(sourceLineNumbers, node.Name.LocalName, "Thumbprint"));
+                this.Messaging.Write(ErrorMessages.IllegalAttributeWithOtherAttribute(sourceLineNumbers, node.Name.LocalName, "Thumbprint", "CertificateRef"));
+            }
+
+            if (null == thumbprint && null == certificateRef)
+            {
+                //this.Messaging.Write(ErrorMessages.ExpectedAttribute(sourceLineNumbers, node.Name.LocalName, "CertificateRef"));
+                this.Messaging.Write(ErrorMessages.ExpectedAttributeWithoutOtherAttribute(sourceLineNumbers, node.Name.LocalName, "Thumbprint", "CertificateRef"));
             }
 
             // Parse unknown children.
@@ -283,6 +294,7 @@ namespace WixToolset.Http
                     Host = host,
                     Port = port,
                     Thumbprint = thumbprint,
+                    CertificateRef = certificateRef,
                     AppId = appId,
                     Store = store,
                     HandleExisting = handleExisting,

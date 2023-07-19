@@ -14,6 +14,7 @@ namespace WixToolset.Http
                 new IntermediateFieldDefinition(nameof(WixHttpSslCertSymbolFields.Host), IntermediateFieldType.String),
                 new IntermediateFieldDefinition(nameof(WixHttpSslCertSymbolFields.Port), IntermediateFieldType.String),
                 new IntermediateFieldDefinition(nameof(WixHttpSslCertSymbolFields.Thumbprint), IntermediateFieldType.String),
+                new IntermediateFieldDefinition(nameof(WixHttpSslCertSymbolFields.CertificateRef), IntermediateFieldType.String),
                 new IntermediateFieldDefinition(nameof(WixHttpSslCertSymbolFields.AppId), IntermediateFieldType.String),
                 new IntermediateFieldDefinition(nameof(WixHttpSslCertSymbolFields.Store), IntermediateFieldType.String),
                 new IntermediateFieldDefinition(nameof(WixHttpSslCertSymbolFields.HandleExisting), IntermediateFieldType.Number),
@@ -32,6 +33,7 @@ namespace WixToolset.Http.Symbols
         Host,
         Port,
         Thumbprint,
+        CertificateRef,
         AppId,
         Store,
         HandleExisting,
@@ -66,6 +68,12 @@ namespace WixToolset.Http.Symbols
         {
             get => this.Fields[(int)WixHttpSslCertSymbolFields.Thumbprint].AsString();
             set => this.Set((int)WixHttpSslCertSymbolFields.Thumbprint, value);
+        }
+
+        public string CertificateRef
+        {
+            get => this.Fields[(int)WixHttpSslCertSymbolFields.CertificateRef].AsString();
+            set => this.Set((int)WixHttpSslCertSymbolFields.CertificateRef, value);
         }
 
         public string AppId

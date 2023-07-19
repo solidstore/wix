@@ -21,6 +21,7 @@ static HRESULT WriteSslCert(
     __in int iPort,
     __in int iHandleExisting,
     __in_z LPCWSTR wzCertificateThumbprint,
+    __in_z LPCWSTR wzCertificateRef,
     __in_z LPCWSTR wzAppId,
     __in_z_opt LPCWSTR wzCertificateStore,
     __inout_z LPWSTR* psczCustomActionData
@@ -57,12 +58,20 @@ static HRESULT SetSslCertSetKey(
     __in_z LPWSTR wzHost,
     __in int iPort
 );
-
+static HRESULT FindExistingCertificate(
+    __in LPCWSTR wzName,
+    __in DWORD dwStoreLocation,
+    __in LPCWSTR wzStore,
+    __out BYTE** prgbCertificate,
+    __out DWORD* pcbCertificate
+);
 
 LPCWSTR vcsWixHttpSslCertQuery =
-L"SELECT `WixHttpSslCert`, `Host`, `Port`, `Thumbprint`, `AppId`, `Store`, `HandleExisting`, `Component_` "
+L"SELECT `WixHttpSslCert`, `Host`, `Port`, `Thumbprint`, `Certificate_`, `AppId`, `Store`, `HandleExisting`, `Component_` "
 L"FROM `Wix4HttpSslCert`";
-enum eWixHttpSslCertQuery { hurqId = 1, hurqHost, hurqPort, hurqCertificateThumbprint, hurqAppId, hurqCertificateStore, hurqHandleExisting, hurqComponent };
+enum eWixHttpSslCertQuery { hurqId = 1, hurqHost, hurqPort, hurqCertificateThumbprint, hurqCertificateRef, hurqAppId, hurqCertificateStore, hurqHandleExisting, hurqComponent };
+
+#define msierrCERTFailedOpen                   26351
 
 /******************************************************************
  SchedWixHttpSslCertsInstall - immediate custom action entry
@@ -123,6 +132,7 @@ extern "C" UINT __stdcall ExecHttpSslCerts(
     int iPort = 0;
     eHandleExisting handleExisting = heIgnore;
     LPWSTR sczCertificateThumbprint = NULL;
+    LPWSTR sczCertificateRef = NULL;
     LPWSTR sczAppId = NULL;
     LPWSTR sczCertificateStore = NULL;
 
@@ -170,6 +180,9 @@ extern "C" UINT __stdcall ExecHttpSslCerts(
         hr = WcaReadStringFromCaData(&wz, &sczCertificateThumbprint);
         ExitOnFailure(hr, "Failed to read CertificateThumbprint from custom action data");
 
+        hr = WcaReadStringFromCaData(&wz, &sczCertificateRef);
+        ExitOnFailure(hr, "Failed to read CertificateRef from custom action data");
+
         hr = WcaReadStringFromCaData(&wz, &sczAppId);
         ExitOnFailure(hr, "Failed to read AppId from custom action data");
 
@@ -181,13 +194,13 @@ extern "C" UINT __stdcall ExecHttpSslCerts(
         case WCA_TODO_INSTALL:
         case WCA_TODO_REINSTALL:
             fRemove = heReplace == handleExisting || fRollback;
-            fAdd = !fRollback || *sczCertificateThumbprint;
+            fAdd = !fRollback || (*sczCertificateThumbprint || *sczCertificateRef);
             fFailOnExisting = heFail == handleExisting && !fRollback;
             break;
 
         case WCA_TODO_UNINSTALL:
             fRemove = !fRollback;
-            fAdd = fRollback && *sczCertificateThumbprint;
+            fAdd = fRollback && (*sczCertificateThumbprint || *sczCertificateRef);
             fFailOnExisting = FALSE;
             break;
         }
@@ -216,8 +229,26 @@ extern "C" UINT __stdcall ExecHttpSslCerts(
         {
             WcaLog(LOGMSG_STANDARD, "Adding SSL certificate '%ls' for hostname: %ls:%d", sczId, sczHost, iPort);
 
-            hr = StrAllocHexDecode(sczCertificateThumbprint, &pbCertificateThumbprint, &cbCertificateThumbprint);
-            ExitOnFailure(hr, "Failed to convert thumbprint to bytes for SSL certificate '%ls' for hostname: %ls:%d", sczId, sczHost, iPort);
+            // if we have been provided a thumbprint, then use that
+            if (*sczCertificateThumbprint)
+            {
+                hr = StrAllocHexDecode(sczCertificateThumbprint, &pbCertificateThumbprint, &cbCertificateThumbprint);
+                ExitOnFailure(hr, "Failed to convert thumbprint to bytes for SSL certificate '%ls' for hostname: %ls:%d", sczId, sczHost, iPort);
+            }
+
+            // if we have been provided with a cerificate ref, use that to find an existing certificate
+            if (*sczCertificateRef)
+            {
+                hr = FindExistingCertificate(sczCertificateRef, CERT_SYSTEM_STORE_LOCAL_MACHINE, sczCertificateStore, &pbCertificateThumbprint, &cbCertificateThumbprint);
+                ExitOnFailure(hr, "Failed to convert thumbprint to bytes for referenced SSL certificate '%ls'", sczCertificateRef);
+                if (S_FALSE == hr)
+                {
+                    ExitOnFailure(HRESULT_FROM_WIN32(ERROR_NOT_FOUND), "Failed to find referenced SSL certificate '%ls'", sczCertificateRef);
+                }
+
+                hr = StrAllocHexEncode(pbCertificateThumbprint, cbCertificateThumbprint, &sczCertificateThumbprint);
+                ExitOnFailure(hr, "Failed to convert thumbprint for referenced SSL certificate '%ls'", sczCertificateRef);
+            }
 
             hr = ::IIDFromString(sczAppId, &guidAppId);
             ExitOnFailure(hr, "Failed to convert AppId '%ls' back to GUID for SSL certificate '%ls' for hostname: %ls:%d", sczAppId, sczId, sczHost, iPort);
@@ -288,6 +319,7 @@ static UINT SchedHttpSslCerts(
     LPWSTR sczHost = NULL;
     int iPort = 0;
     LPWSTR sczCertificateThumbprint = NULL;
+    LPWSTR sczCertificateRef = NULL;
     LPWSTR sczAppId = NULL;
     LPWSTR sczCertificateStore = NULL;
     int iHandleExisting = 0;
@@ -337,6 +369,9 @@ static UINT SchedHttpSslCerts(
         hr = WcaGetRecordFormattedString(hRec, hurqCertificateThumbprint, &sczCertificateThumbprint);
         ExitOnFailure(hr, "Failed to get Wix4HttpSslCert.CertificateThumbprint");
 
+        hr = WcaGetRecordString(hRec, hurqCertificateRef, &sczCertificateRef);
+        ExitOnFailure(hr, "Failed to get Wix4HttpSslCert.CertificateRef");
+
         if (!sczHost || !*sczHost)
         {
             hr = E_INVALIDARG;
@@ -349,11 +384,11 @@ static UINT SchedHttpSslCerts(
             ExitOnFailure(hr, "Require a Port value for Wix4HttpSslCert '%ls'", sczId);
         }
 
-        if (!sczCertificateThumbprint || !*sczCertificateThumbprint)
+        /*if (!sczCertificateThumbprint || !*sczCertificateThumbprint)
         {
             hr = E_INVALIDARG;
             ExitOnFailure(hr, "Require a CertificateThumbprint value for Wix4HttpSslCert '%ls'", sczId);
-        }
+        }*/
 
         hr = WcaGetRecordFormattedString(hRec, hurqAppId, &sczAppId);
         ExitOnFailure(hr, "Failed to get AppId for Wix4HttpSslCert '%ls'", sczId);
@@ -373,7 +408,7 @@ static UINT SchedHttpSslCerts(
         hr = WriteExistingSslCert(todoComponent, sczId, sczHost, iPort, iHandleExisting, pExistingSslSet, &sczRollbackCustomActionData);
         ExitOnFailure(hr, "Failed to write rollback custom action data for Wix4HttpSslCert '%ls'", sczId);
 
-        hr = WriteSslCert(todoComponent, sczId, sczHost, iPort, iHandleExisting, sczCertificateThumbprint, sczAppId, sczCertificateStore, &sczCustomActionData);
+        hr = WriteSslCert(todoComponent, sczId, sczHost, iPort, iHandleExisting, sczCertificateThumbprint, sczCertificateRef, sczAppId, sczCertificateStore, &sczCustomActionData);
         ExitOnFailure(hr, "Failed to write custom action data for Wix4HttpSslCert '%ls'", sczId);
         ++cCertificates;
 
@@ -458,7 +493,7 @@ static HRESULT WriteExistingSslCert(
         wzCertificateStore = pSslSet->ParamDesc.pSslCertStoreName;
     }
 
-    hr = WriteSslCert(action, wzId, wzHost, iPort, iHandleExisting, sczCertificateThumbprint ? sczCertificateThumbprint : L"", sczAppId ? sczAppId : L"", wzCertificateStore ? wzCertificateStore : L"", psczCustomActionData);
+    hr = WriteSslCert(action, wzId, wzHost, iPort, iHandleExisting, sczCertificateThumbprint ? sczCertificateThumbprint : L"", NULL, sczAppId ? sczAppId : L"", wzCertificateStore ? wzCertificateStore : L"", psczCustomActionData);
     ExitOnFailure(hr, "Failed to write custom action data for Wix4HttpSslCert '%ls'", wzId);
 
 LExit:
@@ -475,6 +510,7 @@ static HRESULT WriteSslCert(
     __in int iPort,
     __in int iHandleExisting,
     __in_z LPCWSTR wzCertificateThumbprint,
+    __in_z LPCWSTR wzCertificateRef,
     __in_z LPCWSTR wzAppId,
     __in_z_opt LPCWSTR wzCertificateStore,
     __inout_z LPWSTR* psczCustomActionData
@@ -497,8 +533,11 @@ static HRESULT WriteSslCert(
     hr = WcaWriteIntegerToCaData(iHandleExisting, psczCustomActionData);
     ExitOnFailure(hr, "Failed to write HandleExisting to custom action data");
 
-    hr = WcaWriteStringToCaData(wzCertificateThumbprint, psczCustomActionData);
+    hr = WcaWriteStringToCaData(wzCertificateThumbprint ? wzCertificateThumbprint : L"", psczCustomActionData);
     ExitOnFailure(hr, "Failed to write CertificateThumbprint to custom action data");
+
+    hr = WcaWriteStringToCaData(wzCertificateRef ? wzCertificateRef : L"", psczCustomActionData);
+    ExitOnFailure(hr, "Failed to write CertificateRef to custom action data");
 
     hr = WcaWriteStringToCaData(wzAppId, psczCustomActionData);
     ExitOnFailure(hr, "Failed to write AppId to custom action data");
@@ -689,5 +728,81 @@ static HRESULT SetSslCertSetKey(
     }
 
     HRESULT hr = HRESULT_FROM_WIN32(er);
+    return hr;
+}
+
+static HRESULT FindExistingCertificate(
+    __in LPCWSTR wzName,
+    __in DWORD dwStoreLocation,
+    __in LPCWSTR wzStore,
+    __out BYTE** ppbCertificateThumbprint,
+    __out DWORD* pcbCertificateThumbprint
+)
+{
+    HRESULT hr = S_FALSE;
+    HCERTSTORE hCertStore = NULL;
+    PCCERT_CONTEXT pCertContext = NULL;
+    BYTE* pbCertificateThumbprint = NULL;
+    DWORD cbCertificateThumbprint = 0;
+
+    hCertStore = ::CertOpenStore(CERT_STORE_PROV_SYSTEM, 0, NULL, dwStoreLocation | CERT_STORE_READONLY_FLAG, wzStore);
+    MessageExitOnNullWithLastError(hCertStore, hr, msierrCERTFailedOpen, "Failed to open certificate store.");
+
+    // Loop through the certificate, looking for certificates that match our friendly name.
+    pCertContext = CertFindCertificateInStore(hCertStore, PKCS_7_ASN_ENCODING | X509_ASN_ENCODING, 0, CERT_FIND_ANY, NULL, NULL);
+    while (pCertContext)
+    {
+        WCHAR wzFriendlyName[256] = { 0 };
+        DWORD cbFriendlyName = sizeof(wzFriendlyName);
+
+        if (::CertGetCertificateContextProperty(pCertContext, CERT_FRIENDLY_NAME_PROP_ID, reinterpret_cast<BYTE*>(wzFriendlyName), &cbFriendlyName))
+        {
+            LPCWSTR wzFound = wcsistr(wzFriendlyName, wzName);
+            if (wzFound && wzFound == wzFriendlyName)
+            {
+                // If the certificate with matching friendly name is valid, let's use that.
+                long lVerify = ::CertVerifyTimeValidity(NULL, pCertContext->pCertInfo);
+                if (0 == lVerify)
+                {
+                    byte thumb[64] = { 0 };
+                    cbCertificateThumbprint = sizeof(thumb);
+                    if (!CertGetCertificateContextProperty(pCertContext, CERT_HASH_PROP_ID, thumb, &cbCertificateThumbprint))
+                    {
+                        ExitFunctionWithLastError(hr);
+                    }
+
+                    pbCertificateThumbprint = static_cast<BYTE*>(MemAlloc(cbCertificateThumbprint, FALSE));
+                    ExitOnNull(pbCertificateThumbprint, hr, E_OUTOFMEMORY, "Failed to allocate memory to copy out exist certificate thumbprint.");
+
+                    CopyMemory(pbCertificateThumbprint, thumb, cbCertificateThumbprint);
+                    hr = S_OK;
+                    break; // found a matching certificate, no more searching necessary
+                }
+            }
+        }
+
+        // Next certificate in the store.
+        PCCERT_CONTEXT pNext = ::CertFindCertificateInStore(hCertStore, PKCS_7_ASN_ENCODING | X509_ASN_ENCODING, 0, CERT_FIND_ANY, NULL, pCertContext);
+        // old pCertContext is freed by CertFindCertificateInStore
+        pCertContext = pNext;
+    }
+
+    *ppbCertificateThumbprint = pbCertificateThumbprint;
+    *pcbCertificateThumbprint = cbCertificateThumbprint;
+    pbCertificateThumbprint = NULL;
+
+LExit:
+    ReleaseMem(pbCertificateThumbprint);
+
+    if (pCertContext)
+    {
+        ::CertFreeCertificateContext(pCertContext);
+    }
+
+    if (hCertStore)
+    {
+        ::CertCloseStore(hCertStore, 0);
+    }
+
     return hr;
 }
